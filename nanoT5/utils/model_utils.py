@@ -252,6 +252,16 @@ def get_optimizer(model, args):
             lr=args.optim.base_lr,
             relative_step=False,
         )
+    elif args.optim.name == 'dog':
+        from dog import DoG
+        optimizer = DoG(
+            optimizer_grouped_parameters,
+        )
+    elif args.optim.name == 'ldog':
+        from dog import LDoG
+        optimizer = LDoG(
+            optimizer_grouped_parameters,
+        )
     else:
         raise NotImplementedError
 
