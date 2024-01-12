@@ -1,0 +1,67 @@
+{
+    "mode": "pt",
+    "device": "gpu",
+    "precision": "bf16",
+    "eval_only": false,
+    "predict_only": false,
+    "seed": 2137,
+    "model":
+    {
+        "klass": "local_t5",
+        "name": "google/t5-v1_1-base",
+        "overwrite":
+        {
+            "dropout_rate": 0.0
+        },
+        "add_config":
+        {
+            "is_bf16": false
+        },
+        "checkpoint_path": "",
+        "random_init": true,
+        "compile": false
+    },
+    "data":
+    {
+        "input_length": 512,
+        "mlm_probability": 0.15,
+        "mean_noise_span_length": 3.0,
+        "num_workers": 8
+    },
+    "optim":
+    {
+        "name": "adamwscale",
+        "base_lr": 0.02,
+        "batch_size": 128,  // note that if you use gradient accumulation it will reduce the batch size to keep this as the effective batch size 
+        "total_steps": 65536,
+        "epochs": -1,
+        "warmup_steps": 10000,
+        "lr_scheduler": "cosine",
+        "weight_decay": 0.0,
+        "grad_clip": 1.0,
+        "grad_acc": 1,
+        "final_cosine": 0.00001
+    },
+    "eval":
+    {
+        "every_steps": 100000, // every how many training steps to run eval
+        "steps": 500  // how many steps (i.e. batches) to run eval
+    },
+    "checkpoint":
+    {
+        "every_steps": 100000// every how many training steps to run eval
+    },
+    "logging":
+    {
+        "neptune": false,
+        "neptune_creds":
+        {
+            "project": null,
+            "api_token": null,
+            "tags": ""
+        },
+        "every_steps": 100,
+        "grad_l2": true,
+        "weights_l2": true
+    }
+}
