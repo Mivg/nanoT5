@@ -7,7 +7,7 @@ export PARTITION=${PARTITION:-gpu-a100-killable}
 export GPUS=${GPUS:-1}
 export CONSTRAINTS=${CONSTRAINTS:-"a100"}
 export DATADIR=${OUT_DIR:-/home/joberant/data_nobck/maorivgi/data/nanoT5}
-export TIME=${TIME:-0:23:59:00}
+export TIME=${TIME:-0-23:59:00}
 export CPUS=${CPUS:-20}
 
 # optimizer config
@@ -22,7 +22,7 @@ if [ "${DEBUG}" = "1" ]; then
     export JOB_NAME=debug_job
     export PARTITION=killable
     export CONSTRAINTS="geforce_rtx_3090"
-    export TIME=0:00:30:00
+    export TIME=0-00:30:00
     export CPUS=8
     export BATCH_SIZE=16
     export GRAD_ACCUM=2
@@ -85,9 +85,9 @@ optim.batch_size=${BATCH_SIZE} \
 optim.grad_acc=${GRAD_ACCUM} \
 optim.warmup_steps=100000 \
 optim.total_steps=80000 \
-logging.every_steps=10\
-optim.name=${OPTIMIZER}\
-optim.lr_scheduler=${SCHEDULER}\
+logging.every_steps=10 \
+optim.name=${OPTIMIZER} \
+optim.lr_scheduler=${SCHEDULER} \
 
 EOF
 
