@@ -7,6 +7,33 @@ export PARTITION=${PARTITION:-gpu-a100-killable}
 export GPUS=${GPUS:-1}
 export CONSTRAINTS=${CONSTRAINTS:-"a100"}
 export DATADIR=${OUT_DIR:-/home/joberant/data_nobck/maorivgi/data/nanoT5}
+export TIME=${TIME:-0:23:59:00}
+export CPUS=${CPUS:-20}
+
+# optimizer config
+export OPTIMIZER=${OPTIMIZER:-adamwscale}
+export SCHEDULER=${SCHEDULER:-cosine}
+
+export BATCH_SIZE=${BATCH_SIZE:-256}
+export GRAD_ACCUM=${GRAD_ACCUM:-4}
+
+# Check if DEBUG mode is set to 1 and override variables
+if [ "${DEBUG}" = "1" ]; then
+    export JOB_NAME=debug_job
+    export PARTITION=killable
+    export CONSTRAINTS="geforce_rtx_3090"
+    export TIME=0:00:30:00
+    export CPUS=8
+    export BATCH_SIZE=16
+    export GRAD_ACCUM=2
+fi
+
+# Check if OPTIMIZER ends with 'dog' (case-insensitive) and change SCHEDULER
+OPTIMIZER_LOWER=$(echo "${OPTIMIZER}" | tr '[:upper:]' '[:lower:]')
+if [[ $OPTIMIZER_LOWER == *dog ]]; then
+    export SCHEDULER="constant"
+fi
+
 
 # Check if OUT_DIR exists, create it if it doesn't
 mkdir -p "${OUT_DIR}"/logs
@@ -23,9 +50,9 @@ cat <<EOF > temp_job_script.sh
 #SBATCH --nodes=1
 #SBATCH --output=${OUT_DIR}/logs/%j.out
 #SBATCH --error=${OUT_DIR}/logs/%j.out
-#SBATCH --time=0-23:59:00
+#SBATCH --time=${TIME}
 #SBATCH --partition=${PARTITION}
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=${CPUS}
 #SBATCH --gpus=${GPUS}
 #SBATCH --ntasks=1
 #SBATCH --mem=128G
@@ -54,11 +81,13 @@ checkpoint.every_steps=10000 \
 eval.every_steps=5000 \
 eval.steps=500 \
 model.compile=true \
-optim.batch_size=256 \
-optim.grad_acc=4 \
+optim.batch_size=${BATCH_SIZE} \
+optim.grad_acc=${GRAD_ACCUM} \
 optim.warmup_steps=100000 \
 optim.total_steps=80000 \
 logging.every_steps=10\
+optim.name=${OPTIMIZER}\
+optim.lr_scheduler=${SCHEDULER}\
 
 EOF
 
