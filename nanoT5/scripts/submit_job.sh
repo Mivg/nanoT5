@@ -3,9 +3,9 @@
 # Set the environment variables
 export JOB_NAME=${JOB_NAME:-nanoT5}
 export OUT_DIR=${OUT_DIR:-/home/joberant/data_nobck/maorivgi/nanoT5}
-export PARTITION=${PARTITION:-killable}
+export PARTITION=${PARTITION:-gpu-a100-killable}
 export GPUS=${GPUS:-1}
-export CONSTRAINTS=${CONSTRAINTS:-"geforce_rtx_3090"}
+export CONSTRAINTS=${CONSTRAINTS:-"a100"}
 export DATADIR=${OUT_DIR:-/home/joberant/data_nobck/maorivgi/data/nanoT5}
 
 # Check if OUT_DIR exists, create it if it doesn't
@@ -25,7 +25,7 @@ cat <<EOF > temp_job_script.sh
 #SBATCH --error=${OUT_DIR}/logs/%j.out
 #SBATCH --time=0-23:59:00
 #SBATCH --partition=${PARTITION}
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=20
 #SBATCH --gpus=${GPUS}
 #SBATCH --ntasks=1
 #SBATCH --mem=128G
@@ -49,15 +49,16 @@ export HYDRA_FULL_ERROR=1
 
 # Execution command
 python -m nanoT5.main \
-hydra.run.dir="${OUT_DIR}/hydra/\${now:%Y-%m-%d}/\${now:%H-%M-%S}-\${logging.neptune_creds.tags}" \
-checkpoint.every_steps=5000 \
+hydra.run.dir=${OUT_DIR}/hydra/\\\${now:%Y-%m-%d}/\\\${now:%H-%M-%S}-\\\${logging.neptune_creds.tags} \
+checkpoint.every_steps=10000 \
 eval.every_steps=5000 \
 eval.steps=500 \
 model.compile=true \
 optim.batch_size=256 \
-optim.grad_acc=2 \
+optim.grad_acc=4 \
 optim.warmup_steps=100000 \
 optim.total_steps=80000 \
+logging.every_steps=10\
 
 EOF
 

@@ -3,3 +3,5 @@ env.yaml
 logs
 scripts
 .neptune
+**/__pycache__/
+temp_job_script.sh
