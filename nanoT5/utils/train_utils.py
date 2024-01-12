@@ -11,7 +11,8 @@ def maybe_save_checkpoint(accelerator, args):
         or args.current_train_step % args.checkpoint.every_steps == 0
     ):
         output_dir = f'checkpoint-{args.mode}-{args.current_train_step}'
-        accelerator.save_state(output_dir=output_dir)
+        accelerator.save_state(output_dir=output_dir,
+                               safe_serialization=False)  # because the safe version does not deal with the shared embeddings
 
 
 def maybe_eval_predict(model, dataloader, logger, args, tokenizer):

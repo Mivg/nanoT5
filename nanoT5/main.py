@@ -3,6 +3,8 @@ from omegaconf import open_dict
 import hydra
 import torch
 import time
+import os
+
 
 from .utils import (
     setup_basics,
@@ -44,11 +46,24 @@ def main(args):
         model, optimizer, lr_scheduler, train_dataloader, test_dataloader
     )
 
+    current_train_step = 1
+    resume_training = args.get('accelerator', {}).get('checkpoint_path')
+    if resume_training:
+        assert os.path.isdir(resume_training) and not resume_training.endswith('/')
+        checkpoint_name = os.path.basename(resume_training)
+        assert checkpoint_name.startswith('checkpoint-pt-')
+        current_train_step = int(checkpoint_name.split('-')[-1])
+        # we assume only a single epoch, always
+        logger.logger.info(f"Resuming training run from : {resume_training} at training step {current_train_step}")
+        # note that if we want to keep using the same out dir we will need to modify the hydra run dir
+        accelerator.load_state(input_dir=resume_training)
+
+
     if args.model.compile:
         model = torch.compile(model)
 
     with open_dict(args):
-        args.current_train_step = 1
+        args.current_train_step = current_train_step
         args.current_epoch = 1
         args.last_log = time.time()
 
