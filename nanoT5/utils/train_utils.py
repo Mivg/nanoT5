@@ -3,6 +3,7 @@ import time
 import evaluate
 from .logging_utils import Averager
 from datasets.iterable_dataset import IterableDataset
+import os
 
 
 def maybe_save_checkpoint(accelerator, args):
@@ -14,24 +15,35 @@ def maybe_save_checkpoint(accelerator, args):
         accelerator.save_state(output_dir=output_dir,
                                safe_serialization=False)  # because the safe version does not deal with the shared embeddings
 
+        if accelerator.model_averager is not None:
+            torch.save(accelerator.model_averager.state_dict(), os.path.join(output_dir, 'averager.bin'))
 
-def maybe_eval_predict(model, dataloader, logger, args, tokenizer):
+def eval_predict(model, dataloader, logger, args, tokenizer, prefix='eval/'):
+    model.eval()
+
+    with torch.no_grad():
+        eval(model, dataloader, logger, args, tokenizer, prefix=prefix)
+
+        if args.mode == 'ft':
+            predict(
+                model, dataloader, logger, args, tokenizer, prefix=prefix.replace('eval', 'test')
+            )
+
+    args.last_log = time.time()
+    model.train()
+
+def maybe_eval_predict(accelerator, model, dataloader, logger, args, tokenizer):
     if (
         args.current_train_step > args.optim.total_steps
         or args.current_train_step % args.eval.every_steps == 0
     ):
-        model.eval()
+        eval_predict(model, dataloader, logger, args, tokenizer)
 
-        with torch.no_grad():
-            eval(model, dataloader, logger, args, tokenizer)
+        if accelerator.model_averager is not None:
+            # eval both models, and use prefix='eval_av/' instead of prefix='eval/'
+            eval_predict(accelerator.model_averager.averaged_model, dataloader, logger, args, tokenizer, prefix='eval_av/')
 
-            if args.mode == 'ft':
-                predict(
-                    model, dataloader, logger, args, tokenizer
-                )
 
-        args.last_log = time.time()
-        model.train()
 
 
 def maybe_logging(averager, args, model, optimizer, logger):
@@ -100,7 +112,7 @@ def forward(model, batch, calc_acc=False):
     return loss, stats
 
 
-def eval(model, dataloader, logger, args, tokenizer):
+def eval(model, dataloader, logger, args, tokenizer, prefix='test/'):
     args.last_log = time.time()
     averager = Averager()
 
@@ -118,11 +130,11 @@ def eval(model, dataloader, logger, args, tokenizer):
         stats=averaged_stats,
         step=args.current_train_step,
         args=args,
-        prefix='eval/'
+        prefix=prefix
     )
 
 
-def predict(model, dataloader, logger, args, tokenizer):
+def predict(model, dataloader, logger, args, tokenizer, prefix='test/'):
     args.last_log = time.time()
     metric = evaluate.load('rouge')
     samples_seen = 0
@@ -167,7 +179,7 @@ def predict(model, dataloader, logger, args, tokenizer):
         },
         step=args.current_train_step,
         args=args,
-        prefix="test/",
+        prefix=prefix,
     )
 
 
@@ -197,16 +209,18 @@ def train(model, train_dataloader, test_dataloader, accelerator, lr_scheduler,
                 train_averager.update(stats)
 
                 optimizer.step()
+                if accelerator.model_averager is not None:
+                    accelerator.model_averager.step()
                 lr_scheduler.step()
                 optimizer.zero_grad(set_to_none=True)
 
                 maybe_logging(train_averager, args, model, optimizer, logger)
-                maybe_eval_predict(model, test_dataloader, logger, args, tokenizer)
+                maybe_eval_predict(accelerator, model, test_dataloader, logger, args, tokenizer)
                 maybe_save_checkpoint(accelerator, args)
 
                 args.current_train_step += 1
 
         args.current_epoch += 1
 
-    maybe_eval_predict(model, test_dataloader, logger, args, tokenizer)
+    maybe_eval_predict(accelerator, model, test_dataloader, logger, args, tokenizer)
     maybe_save_checkpoint(accelerator, args)

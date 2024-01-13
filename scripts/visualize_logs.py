@@ -16,7 +16,7 @@ def parse_log_file(file_path: str, key: str = 'Loss') -> pd.DataFrame:
         lines = file.readlines()
 
     # Regular expression pattern to match the log line format and extract relevant data
-    pattern = r'\[([0-9-]+ [0-9:,]+)\]\[([A-Za-z]+)\]\[INFO\] - \[([a-z]+)\] Step (\d+) out of \d+ \| .*?{} --> ([\d.]+) \|'.format(re.escape(key))
+    pattern = r'\[([0-9-]+ [0-9:,]+)\]\[([A-Za-z]+)\]\[INFO\] - \[([a-z_]+)\] Step (\d+) out of \d+ \| .*?{} --> ([\d.]+) \|'.format(re.escape(key))
 
     data = []
     for line in lines:
@@ -38,18 +38,22 @@ def plot_data(files: List[Tuple[str, str]], key: str = 'Loss') -> str:
     :return: Path to the saved plot HTML file.
     """
     fig = go.Figure()
+    PHASES = ['train', 'eval', 'eval_av']
+    PHASES_MARKERS = dict(zip(PHASES, ['circle', 'x', '*'))
 
     for name, file_path in files:
         df = parse_log_file(file_path, key)
-        for phase in ['train', 'eval']:
+        for phase in ['train', 'eval', 'eval_av']:
             phase_df = df[df['Phase'] == phase]
+            if len(phase_df) == 0:
+                continue
             fig.add_trace(go.Scatter(
                 x=phase_df['Step'],
                 y=phase_df['Value'],
                 mode='lines+markers',
                 name=f"{name} [{phase}]",
                 marker=dict(
-                    symbol='circle' if phase == 'train' else 'x'
+                    symbol=PHASES_MARKERS[phase]
                 )
             ))
 

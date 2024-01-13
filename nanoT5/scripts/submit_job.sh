@@ -88,6 +88,7 @@ optim.total_steps=80000 \
 logging.every_steps=10 \
 optim.name=${OPTIMIZER} \
 optim.lr_scheduler=${SCHEDULER} \
++optim.averager=PolynomialDecayAverager \
 
 EOF
 

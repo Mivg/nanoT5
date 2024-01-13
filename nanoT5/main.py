@@ -46,21 +46,31 @@ def main(args):
         model, optimizer, lr_scheduler, train_dataloader, test_dataloader
     )
 
+    accelerator.model_averager = None
+    use_averager = args.get('optim', {}).get('averager')
+    if use_averager:
+        assert use_averager == 'PolynomialDecayAverager'
+        from dog import PolynomialDecayAverager
+        accelerator.model_averager = PolynomialDecayAverager(model)
+
     current_train_step = 1
     resume_training = args.get('accelerator', {}).get('checkpoint_path')
     if resume_training:
         assert os.path.isdir(resume_training) and not resume_training.endswith('/')
         checkpoint_name = os.path.basename(resume_training)
         assert checkpoint_name.startswith('checkpoint-pt-')
-        current_train_step = int(checkpoint_name.split('-')[-1])
+        current_train_step = int(checkpoint_name.split('-')[-1]) + 1 # adding 1 since we don't want to needlessly resave ad re-eval this checkpoint at this step, it was already done
         # we assume only a single epoch, always
         logger.logger.info(f"Resuming training run from : {resume_training} at training step {current_train_step}")
         # note that if we want to keep using the same out dir we will need to modify the hydra run dir
         accelerator.load_state(input_dir=resume_training)
 
+        if accelerator.model_averager is not None:  # TODO - need to test! also make sure the model weights are updated in the averager
+            accelerator.model_averager.load_state_dict(torch.load(os.path.join(resume_training, 'averager.bin'), map_location="cpu"))
+
 
     if args.model.compile:
-        model = torch.compile(model)
+        model = torch.compile(model)  # TODO - compile the averaged model as well?
 
     with open_dict(args):
         args.current_train_step = current_train_step
@@ -75,7 +85,7 @@ def main(args):
         model.eval()
         with torch.no_grad():
             predict(model, test_dataloader, logger,
-                    args, tokenizer)
+                    args, tokenizer)  # todo also add the averaged model
     else:
         train(model, train_dataloader, test_dataloader, accelerator,
               lr_scheduler, optimizer, logger, args, tokenizer)
