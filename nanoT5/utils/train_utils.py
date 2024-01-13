@@ -92,6 +92,11 @@ def extra_stats(args, model, optimizer):
         stats['weights_l2'] = weights_l2
 
     stats['lr'] = optimizer.param_groups[0]['lr']
+    # for DoG and LDoG, we will use the max values of each parameter (eta, rbar and G) across param groups
+    if 'dog' in args.optim.name:
+        stats['eta'] = max(torch.Tensor(p['eta']).max().item() for p in optimizer.param_groups)  # max eta
+        stats['G'] = max(torch.Tensor(p['G']).max().item() for p in optimizer.param_groups)
+        stats['rbar'] = max(torch.Tensor(p['rbar']).max().item() for p in optimizer.param_groups)
     stats['seconds_per_step'] = (time.time() - args.last_log) / args.logging.every_steps
 
     return stats

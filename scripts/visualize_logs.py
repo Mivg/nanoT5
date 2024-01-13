@@ -9,7 +9,8 @@ def parse_log_file(file_path: str, key: str = 'Loss') -> pd.DataFrame:
     Parses a log file and extracts the specified key's values along with step numbers and phase (train/eval).
 
     :param file_path: Path to the log file.
-    :param key: The key to extract values for (e.g., 'Loss', 'Weights_l2').
+    :param key: The key to extract values for (e.g., 'Loss', 'Weights_l2', 'Grad_l2', 'Lr',
+    'Seconds_per_step', 'eta', 'rbar', 'G').
     :return: DataFrame with columns ['Step', 'Value', 'Phase'].
     """
     with open(file_path, 'r') as file:
@@ -73,6 +74,7 @@ def plot_data(files: List[Tuple[str, str]], key: str = 'Loss') -> str:
 if __name__ == '__main__':
     # Example usage
     file_paths = [f.split('=') for f in sys.argv[1:]]
-    output_plot = plot_data(file_paths)
+    output_plot = plot_data(file_paths, key='Lr')
+    # output_plot = plot_data(file_paths, key='Loss')
     print(f"Plot saved to {output_plot}")
 

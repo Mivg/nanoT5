@@ -254,11 +254,28 @@ def get_optimizer(model, args):
         )
     elif args.optim.name == 'dog':
         from dog import DoG
+        # no differnet param groups and no weight decay
+        assert args.optim.weight_decay == 0.0
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters()],
+                "weight_decay": 0,
+            },
+        ]
+
         optimizer = DoG(
             optimizer_grouped_parameters,
         )
     elif args.optim.name == 'ldog':
         from dog import LDoG
+        # no differnet param groups and no weight decay
+        assert args.optim.weight_decay == 0.0
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters()],
+                "weight_decay": 0,
+            },
+        ]
         optimizer = LDoG(
             optimizer_grouped_parameters,
         )
