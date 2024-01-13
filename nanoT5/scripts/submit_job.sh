@@ -34,6 +34,12 @@ if [[ $OPTIMIZER_LOWER == *dog ]]; then
     export SCHEDULER="constant"
 fi
 
+if [ -n "$EXCLUDE" ]; then
+    exclude_str="#SBATCH --exclude=${EXCLUDE}"
+else
+    exclude_str=""
+fi
+
 
 # Check if OUT_DIR exists, create it if it doesn't
 mkdir -p "${OUT_DIR}"/logs
@@ -60,6 +66,7 @@ cat <<EOF > temp_job_script.sh
 #SBATCH --mail-user=maorivgi
 #SBATCH --signal=B:USR1@300
 #SBATCH --constraint=${CONSTRAINTS}
+${exclude_str}
 
 source ~/.bashrc
 conda activate nanoT5
@@ -76,7 +83,7 @@ export HYDRA_FULL_ERROR=1
 
 # Execution command
 python -m nanoT5.main \
-hydra.run.dir=${OUT_DIR}/hydra/\\\${now:%Y-%m-%d}/\\\${now:%H-%M-%S}-\\\${logging.neptune_creds.tags} \
+hydra.run.dir=${OUT_DIR}/hydra/\\\${now:%Y-%m-%d}/\\\${now:%H-%M-%S}-${JOB_NAME}\\\${logging.neptune_creds.tags} \
 checkpoint.every_steps=10000 \
 eval.every_steps=5000 \
 eval.steps=500 \

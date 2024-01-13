@@ -39,7 +39,7 @@ def plot_data(files: List[Tuple[str, str]], key: str = 'Loss') -> str:
     """
     fig = go.Figure()
     PHASES = ['train', 'eval', 'eval_av']
-    PHASES_MARKERS = dict(zip(PHASES, ['circle', 'x', '*'))
+    PHASES_MARKERS = dict(zip(PHASES, ['circle', 'square', 'x']))
 
     for name, file_path in files:
         df = parse_log_file(file_path, key)
