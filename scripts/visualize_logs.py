@@ -13,6 +13,13 @@ def parse_log_file(file_path: str, key: str = 'Loss') -> pd.DataFrame:
     'Seconds_per_step', 'eta', 'rbar', 'G').
     :return: DataFrame with columns ['Step', 'Value', 'Phase'].
     """
+    if '/' in key:
+        for key in key.split('/'):
+            df = parse_log_file(file_path, key)
+            if len(df) > 0:
+                return df
+        return pd.DataFrame(columns=['Step', 'Value', 'Phase'])
+
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
@@ -74,7 +81,7 @@ def plot_data(files: List[Tuple[str, str]], key: str = 'Loss') -> str:
 if __name__ == '__main__':
     # Example usage
     file_paths = [f.split('=') for f in sys.argv[1:]]
-    output_plot = plot_data(file_paths, key='Lr')
+    output_plot = plot_data(file_paths, key='Eta/Lr')
     # output_plot = plot_data(file_paths, key='Loss')
     print(f"Plot saved to {output_plot}")
 
