@@ -81,7 +81,8 @@ def plot_data(files: List[Tuple[str, str]], key: str = 'Loss') -> str:
 if __name__ == '__main__':
     # Example usage
     file_paths = [f.split('=') for f in sys.argv[1:]]
-    output_plot = plot_data(file_paths, key='Eta/Lr')
-    # output_plot = plot_data(file_paths, key='Loss')
+    # output_plot = plot_data(file_paths, key='Seconds_per_step')
+    # output_plot = plot_data(file_paths, key='Eta/Lr')
+    output_plot = plot_data(file_paths, key='Loss')
     print(f"Plot saved to {output_plot}")
 

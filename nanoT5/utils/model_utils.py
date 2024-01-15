@@ -277,7 +277,17 @@ def get_optimizer(model, args, logger):
                     # assert key.strip() not in args.optim, f'Argument {key} is already given in the optim params'
                     args_dict[key.strip()] = eval(value.strip())
 
-        if args.optim.weight_decay == 0.0:
+        if args_dict.pop('_split_', False):
+            # Split the parameters into individual groups
+            assert args.optim.weight_decay == 0.0, 'Weight decay must be zero when splitting the parameters into individual groups'
+            logger.log_message('Splitting the parameters into individual groups (layer-wise version)')
+            optimizer_grouped_parameters = [
+                {
+                    "params": [p],
+                    "weight_decay": 0.0,
+                    "name": n
+                } for n, p in model.named_parameters() ]
+        elif args.optim.weight_decay == 0.0:
             optimizer_grouped_parameters = [
                 {
                     "params": [p for n, p in model.named_parameters()],
