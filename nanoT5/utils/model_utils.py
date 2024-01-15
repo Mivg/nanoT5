@@ -1,4 +1,6 @@
 import torch
+import os, sys
+import inspect
 import datasets
 from torch.utils.data import DataLoader
 from omegaconf import open_dict
@@ -219,7 +221,7 @@ def get_dataloaders(tokenizer, config, args):
     return dataloaders['train'], dataloaders['test']
 
 
-def get_optimizer(model, args):
+def get_optimizer(model, args, logger):
     no_decay = ["bias", "LayerNorm", "layernorm", "layer_norm", "ln"]
 
     optimizer_grouped_parameters = [
@@ -252,6 +254,61 @@ def get_optimizer(model, args):
             lr=args.optim.base_lr,
             relative_step=False,
         )
+    elif '@' in args.optim.name:
+        # Dynamically loading an optimizer class based on the provided pattern.
+        # The pattern is expected to be in the format:
+        # <className>/arg1=:value1/arg2:value2@<abs path to module name>
+        # Example: "MyOptimizer/lr:0.01/momentum:0.9@my_optimizer_module"
+        # Example: "MyOptimizer@my_optimizer_module"
+        # If no arguments are specified, the optimizer is initialized with default values.
+
+        import importlib
+
+        class_def, module_path = args.optim.name.split('@')
+        class_name = class_def.split('/')[0]
+
+        # Parse arguments if any
+        args_dict = {}
+        if '/' in class_def:
+            for arg in class_def.split('/')[1:]:
+                if arg:
+                    key, value = arg.split(':')
+                    assert key.strip() not in args_dict, f'Argument {key} is specified twice'
+                    # assert key.strip() not in args.optim, f'Argument {key} is already given in the optim params'
+                    args_dict[key.strip()] = eval(value.strip())
+
+        if args.optim.weight_decay == 0.0:
+            optimizer_grouped_parameters = [
+                {
+                    "params": [p for n, p in model.named_parameters()],
+                    "weight_decay": 0,
+                },
+            ]
+
+        # Dynamically import the module and class
+        # Extract directory path and module name
+        module_dir, module_file = os.path.split(module_path)
+        module_name = os.path.splitext(module_file)[0]
+
+        # Add the directory path to sys.path
+        sys.path.append(module_dir)
+
+        # Import the module
+        module = importlib.import_module(module_name)
+        OptimizerClass = getattr(module, class_name)
+
+        # Fetch the accepted arguments of the optimizer class
+        accepted_args = inspect.signature(OptimizerClass.__init__).parameters
+
+        # Update args_dict with arguments from args.optim that are accepted by the optimizer class
+        for key, value in args.optim.items():
+            if key in accepted_args and key != 'name' and key not in args_dict:
+                raise ValueError(f'Argument {key} is not specified in the optimizer name but it is given in the optim args. When usin dynamic loading you should set all parameters explicitly')
+
+        logger.log_message(f'Initializing optimizer {OptimizerClass.__name__} form {module_path} with args: {args_dict}')
+        # Initialize the optimizer
+        optimizer = OptimizerClass(optimizer_grouped_parameters, **args_dict)
+
     elif args.optim.name == 'dog':
         from dog import DoG
         # no differnet param groups and no weight decay
@@ -262,7 +319,6 @@ def get_optimizer(model, args):
                 "weight_decay": 0,
             },
         ]
-
         optimizer = DoG(
             optimizer_grouped_parameters,
         )
