@@ -46,6 +46,9 @@ def main(args):
         model, optimizer, lr_scheduler, train_dataloader, test_dataloader
     )
 
+    for idx, p in enumerate(model.parameters()):
+        p.id_number = idx
+
     accelerator.model_averager = None
     use_averager = args.get('optim', {}).get('averager')
     if use_averager:

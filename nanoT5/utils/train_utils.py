@@ -83,6 +83,7 @@ def maybe_grad_clip_and_grad_calc(accelerator, model, args):
     else:
         return {}
 
+keys_to_log = None
 
 def extra_stats(args, model, optimizer):
     stats = {}
@@ -94,9 +95,14 @@ def extra_stats(args, model, optimizer):
     stats['lr'] = optimizer.param_groups[0]['lr']
     # for DoG and LDoG, we will use the max values of each parameter (eta, rbar and G) across param groups
     if 'dog' in args.optim.name:
-        stats['eta'] = max(torch.Tensor(p['eta']).max().item() for p in optimizer.param_groups)  # max eta
-        stats['G'] = max(torch.Tensor(p['G']).max().item() for p in optimizer.param_groups)
-        stats['rbar'] = max(torch.Tensor(p['rbar']).max().item() for p in optimizer.param_groups)
+        global keys_to_log
+        if keys_to_log is None:
+            keys_to_log = []
+            for key in optimizer.param_groups[0].keys():
+                if key.startswith('eta') or key.startswith('rbar') or key.startswith('G'):
+                    keys_to_log.append(key)
+        for key in keys_to_log:
+            stats[key] = max(torch.Tensor(p[key]).max().item() for p in optimizer.param_groups)
     stats['seconds_per_step'] = (time.time() - args.last_log) / args.logging.every_steps
 
     return stats
